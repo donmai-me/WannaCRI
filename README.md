@@ -12,7 +12,7 @@ This library has the following requirements:
 
 A working FFmpeg and FFprobe installation. On Windows, you can download official ffmpeg and ffprobe binaries and place them on your path.
 
-This project also heavily uses the [ffmpeg-python](https://pypi.org/project/ffmpeg-python) wrapper.
+This project heavily uses the [ffmpeg-python](https://pypi.org/project/ffmpeg-python) wrapper. And uses [python-json-logger](https://pypi.org/project/python-json-logger) for logging.
 
 # Usage
 
