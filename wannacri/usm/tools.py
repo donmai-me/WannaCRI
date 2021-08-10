@@ -1,5 +1,5 @@
 import math
-from typing import Tuple, IO, List, Callable
+from typing import Tuple, IO, List, Callable, Union
 import threading
 import unicodedata
 import re
@@ -32,16 +32,23 @@ def is_valid_chunk(signature: bytes) -> bool:
     Returns true if valid, and false if invalid or the given input is less
     than four bytes.
     """
-    signature = bytearray(signature)
     if len(signature) < 4:
         return False
 
     valid_signatures = [
-        bytearray("CRID", "UTF-8"),  # CRI USF DIR STREAM
-        bytearray("@SFV", "UTF-8"),  # Video
-        bytearray("@SFA", "UTF-8"),  # Audio
+        bytes("CRID", "UTF-8"),  # CRI USF DIR STREAM
+        bytes("@SFV", "UTF-8"),  # Video
+        bytes("@SFA", "UTF-8"),  # Audio
     ]
     return signature[:4] in valid_signatures
+
+
+def is_payload_list_pages(payload: bytes) -> bool:
+    """Checks if payload is a list of UsmPage which has a signature of '@UTF' at the beginning."""
+    if len(payload) < 4:
+        return False
+
+    return payload[:4] == bytes("@UTF", "UTF-8")
 
 
 def chunk_size_and_padding(header: bytes) -> Tuple[int, int]:
@@ -214,12 +221,8 @@ def get_video_header_end_offset(num_keyframes: int) -> int:
     return total_size + padding
 
 
-def bytes_to_hex(data: bytes) -> str:
-    result = ""
-    for byte in bytearray(data):
-        result += "{:02x} ".format(byte)
-
-    return result
+def bytes_to_hex(data: Union[bytes, bytearray]) -> str:
+    return " ".join([f"{k:02x}" for k in data])
 
 
 def is_usm(magic: bytes) -> bool:

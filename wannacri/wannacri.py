@@ -9,6 +9,7 @@ import random
 from typing import List, Optional
 
 import ffmpeg
+from pythonjsonlogger import jsonlogger
 
 import wannacri
 from .codec import Sofdec2Codec
@@ -122,38 +123,51 @@ def probe_usm():
 
     usmfiles = find_usm(args.input)
 
-    os.makedirs(args.output)
+    os.makedirs(args.output, exist_ok=True)
     temp_dir = tempfile.mkdtemp()
     ffprobe_path = find_ffprobe(args.ffprobe)
 
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
-    format_str = "%(levelname)-8s %(message)s"
+
+    keys = [
+        "levelname",
+        "asctime",
+        "module",
+        "funcName",
+        "lineno",
+        "message",
+    ]
+    format_str = " ".join(["%({0:s})s".format(key) for key in keys])
     for i, usmfile in enumerate(usmfiles):
         print(f"Processing {i + 1} of {len(usmfiles)}")
+
         filename = os.path.basename(usmfile)
         random_str = "".join(random.choices(string.ascii_letters + string.digits, k=3))
+        logname = os.path.join(args.output, f"{filename}_{random_str}.log")
 
         # Initialize logger
-        logname = os.path.join(args.output, f"{filename}_{random_str}.log")
-        newfilehandler = logging.FileHandler(logname, "w", encoding="UTF-8")
-        newformatter = logging.Formatter(format_str)
-        newfilehandler.setFormatter(newformatter)
-        for handler in logger.handlers[:]:
-            logger.removeHandler(handler)
+        file_handler = logging.FileHandler(logname, "w", encoding="UTF-8")
+        file_handler.setFormatter(jsonlogger.JsonFormatter(format_str))
 
-        logger.addHandler(newfilehandler)
+        [logger.removeHandler(handler) for handler in logger.handlers.copy()]
+        logger.addHandler(file_handler)
 
         # Start logging
-        logging.info("Path: %s", usmfile.replace(args.input, ""))
-        logging.info("Version: %s", wannacri.__version__)
-        logging.info("OS: %s %s", platform.system(), platform.release())
-        logging.info("Using local ffprobe: %s", "No" if ffprobe_path is None else "Yes")
+        logging.info(
+            "Info",
+            extra={
+                "path": usmfile.replace(args.input, ""),
+                "version": wannacri.__version__,
+                "os": f"{platform.system()} {platform.release()}",
+                "is_local_ffprobe": False if ffprobe_path is None else True,
+            },
+        )
 
         try:
             usm = Usm.open(usmfile, encoding=args.encoding)
         except ValueError:
-            logging.exception("main: Error occured in parsing usm file")
+            logging.exception("Error occurred in parsing usm file")
             continue
 
         logging.info("Extracting files")
@@ -162,7 +176,7 @@ def probe_usm():
                 path=temp_dir, save_video=True, save_audio=True, save_pages=False
             )
         except ValueError:
-            logging.exception("main: Error occured in demuxing usm file")
+            logging.exception("Error occurred in demuxing usm file")
             continue
 
         logging.info("Probing videos")
@@ -173,17 +187,22 @@ def probe_usm():
                     show_entries="packet=dts,pts_time,pos,flags",
                     cmd="ffprobe" if ffprobe_path is None else ffprobe_path,
                 )
-                logging.info("Video %s info", video)
-                logging.info("format: %s", info.get("format"))
-                logging.info("streams: %s", info.get("streams"))
-                logging.info("packets: %s", info.get("packets"))
+                logging.info(
+                    "Video info",
+                    extra={
+                        "path": video,
+                        "format": info.get("format"),
+                        "streams": info.get("streams"),
+                        "packets": info.get("packets"),
+                    },
+                )
         except (ValueError, RuntimeError):
-            logging.exception("main: Error occurred in ffmpeg probe in videos")
+            logging.exception("Program error occurred in ffmpeg probe in videos")
             continue
         except ffmpeg.Error as e:
             logging.exception(
-                "main: FFmpeg error occurred in ffmpeg probe in videos. stderr: %s",
-                e.stderr,
+                "FFmpeg error occurred in ffmpeg probe in videos.",
+                extra={"stderr": e.stderr},
             )
             continue
 
@@ -195,23 +214,28 @@ def probe_usm():
                     show_entries="packet=dts,pts_time,pos,flags",
                     cmd="ffprobe" if ffprobe_path is None else ffprobe_path,
                 )
-                logging.info("Audio %s info", audio)
-                logging.info("format: %s", info.get("format"))
-                logging.info("streams: %s", info.get("streams"))
-                logging.info("packets: %s", info.get("packets"))
+                logging.info(
+                    "Audio info",
+                    extra={
+                        "path": audio,
+                        "format": info.get("format"),
+                        "streams": info.get("streams"),
+                        "packets": info.get("packets"),
+                    },
+                )
         except (ValueError, RuntimeError):
-            logging.exception("main: Error occurred in ffmpeg probe in audios")
+            logging.exception("Program error occurred in ffmpeg probe in audios")
             continue
         except ffmpeg.Error as e:
             logging.exception(
-                "main: FFmpeg error occurred in ffmpeg probe in audios. stderr: %s",
-                e.stderr,
+                "FFmpeg error occurred in ffmpeg probe in audios.",
+                extra={"stderr": e.stderr},
             )
             continue
 
         logging.info("Done probing usm file")
         for filename in os.listdir(temp_dir):
-            shutil.rmtree(os.path.join(temp_dir + filename))
+            shutil.rmtree(os.path.join(temp_dir, filename))
 
     shutil.rmtree(temp_dir)
     print(f'Probe complete. All logs are stored in "{args.output}" folder')
@@ -362,7 +386,7 @@ def existing_file(path) -> str:
 
 
 def dir_path(path) -> str:
-    if os.path.isdir(path):
-        return path.rstrip("/\\")
+    if os.path.isfile(path):
+        raise FileExistsError(path)
 
-    raise NotADirectoryError(path)
+    return path.rstrip("/\\")

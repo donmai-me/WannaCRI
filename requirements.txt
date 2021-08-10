@@ -1,1 +1,2 @@
 ffmpeg-python~=0.2.0
+python-json-logger~=2.0.2

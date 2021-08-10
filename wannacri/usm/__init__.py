@@ -13,7 +13,7 @@ from .page import UsmPage, get_pages, pack_pages
 from .usm import Usm
 from .chunk import UsmChunk
 from .media import UsmMedia, UsmVideo, UsmAudio, GenericVideo, GenericAudio, Vp9
-from .types import OpMode, ArrayType, ElementType, PayloadType, ChunkType
+from .types import OpMode, ElementOccurrence, ElementType, PayloadType, ChunkType
 
 import logging
 from logging import NullHandler

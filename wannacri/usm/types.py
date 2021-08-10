@@ -36,13 +36,13 @@ class PayloadType(Enum):
         raise ValueError(f"Value {value} is outside of valid values.")
 
 
-class ArrayType(Enum):
-    SHARED = 1
-    UNIQUE = 2
+class ElementOccurrence(Enum):
+    RECURRING = 1
+    NON_RECURRING = 2
 
     @staticmethod
-    def from_int(value: int) -> ArrayType:
-        enums = [(enum.value, enum) for enum in ArrayType]
+    def from_int(value: int) -> ElementOccurrence:
+        enums = [(enum.value, enum) for enum in ElementOccurrence]
         for enum_value, enum_type in enums:
             if value == enum_value:
                 return enum_type

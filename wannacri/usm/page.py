@@ -1,9 +1,9 @@
 import struct
 import logging
-from typing import List, Any, Tuple, Dict, NamedTuple, Set, Optional
+from typing import List, Any, Tuple, Dict, NamedTuple, Set, Optional, Union
 
 from .tools import bytes_to_hex
-from .types import ArrayType, ElementType
+from .types import ElementOccurrence, ElementType
 
 
 class Element(NamedTuple):
@@ -65,24 +65,35 @@ def get_pages(info: bytearray, encoding: str = "UTF-8") -> List[UsmPage]:
     string_array = info[(8 + strings_offset) : (8 + byte_array_offset)]
     byte_array = info[8 + byte_array_offset : 8 + payload_size]
 
-    # Strings are null-byte terminated
-    page_name_end = page_name_offset + string_array[page_name_offset:].index(0x00)
-    page_name = string_array[page_name_offset:page_name_end].decode("UTF-8")
+    try:
+        # Strings are null-byte terminated
+        page_name_end = page_name_offset + string_array[page_name_offset:].index(0x00)
+        page_name: Optional[str] = string_array[page_name_offset:page_name_end].decode(
+            "UTF-8"
+        )
+    except (ValueError, UnicodeDecodeError) as e:
+        logging.error(
+            "Error occurred in processing page name",
+            extra={"error": e, "string_array": string_array},
+        )
+        page_name = None
 
     logging.debug(
-        "get_pages: Identifier: %s, payload size: %s, unique array offset: %x, "
-        + "string array offset: %x, bytearray offset: %x, name offset %x, "
-        + "element count per page: %x, unique array size per page: %x, page count: %x",
-        bytes_to_hex(info[0:4]),
-        payload_size,
-        unique_array_offset,
-        strings_offset,
-        byte_array_offset,
-        page_name_offset,
-        num_elements_per_page,
-        unique_array_size_per_page,
-        num_pages,
+        "Pages info",
+        extra={
+            "size": payload_size,
+            "unique_array_offset": unique_array_offset,
+            "string_array_offset": strings_offset,
+            "byte_array_offset": byte_array_offset,
+            "page_name_offset": page_name_offset,
+            "num_elements_per_page": num_elements_per_page,
+            "unique_array_size_per_page": unique_array_size_per_page,
+            "num_pages": num_pages,
+        },
     )
+
+    if page_name is None:
+        raise ValueError("Error occurred in processing page name")
 
     pages = [UsmPage(page_name) for _ in range(num_pages)]
 
@@ -95,39 +106,74 @@ def get_pages(info: bytearray, encoding: str = "UTF-8") -> List[UsmPage]:
     for page in pages:
         shared_array = info[0x20 : 8 + unique_array_offset]
         for _ in range(num_elements_per_page):
-            element_type = shared_array[0] & 0x1F
-            element_occurrence = shared_array[0] >> 5
+            try:
+                element_type: Union[ElementType, int] = ElementType.from_int(
+                    shared_array[0] & 0x1F
+                )
+            except ValueError:
+                element_type = shared_array[0] & 0x1F
+
+            try:
+                element_occurrence: Union[
+                    ElementOccurrence, int
+                ] = ElementOccurrence.from_int(shared_array[0] >> 5)
+            except ValueError:
+                element_occurrence = shared_array[0] >> 5
 
             element_name_offset = int.from_bytes(shared_array[1:5], "big")
-            element_end = element_name_offset + string_array[
-                element_name_offset:
-            ].index(0x00)
-            element_name = string_array[element_name_offset:element_end].decode(
-                encoding
-            )
+
+            try:
+                element_end = element_name_offset + string_array[
+                    element_name_offset:
+                ].index(0x00)
+                element_name: Optional[str] = string_array[
+                    element_name_offset:element_end
+                ].decode(encoding)
+            except (ValueError, UnicodeDecodeError) as e:
+                logging.error(
+                    "Error occurred in processing element name",
+                    extra={
+                        "error": e,
+                        "element_name_offset": element_name_offset,
+                        "string_array_at_element_name": string_array[
+                            element_name_offset:
+                        ],
+                    },
+                )
+                element_name = None
 
             shared_array = shared_array[5:]
-            try:
-                element_type = ElementType.from_int(element_type)
 
-                if element_occurrence == ArrayType.SHARED.value:
-                    current_array = shared_array
-                elif element_occurrence == ArrayType.UNIQUE.value:
-                    current_array = unique_array
-                else:
-                    raise ValueError(f"Unknown case: {element_occurrence}")
-
-            except ValueError:
+            # Leave a note before we die
+            if (
+                element_name is None
+                or not isinstance(element_type, ElementType)
+                or not isinstance(element_occurrence, ElementOccurrence)
+            ):
                 logging.error(
-                    "get_pages: Unknown element. Name: %s, type: %s, occurrence: %x, "
-                    + "shared array next four bytes: %s, unique array next four bytes: %s",
-                    element_name,
-                    element_type,
-                    element_occurrence,
-                    bytes_to_hex(shared_array[:4]),
-                    bytes_to_hex(unique_array[:4]),
+                    "Error occurred in element processing",
+                    extra={
+                        "page_name": element_name,
+                        "type": element_type,
+                        "occurrence": element_occurrence,
+                        "shared_array": bytes_to_hex(shared_array),
+                        "unique_array": bytes_to_hex(unique_array),
+                        "string_array": string_array,
+                        "byte_array": byte_array,
+                    },
                 )
-                raise
+
+            if element_name is None:
+                raise ValueError("Error occurred in processing element name")
+            if not isinstance(element_type, ElementType):
+                raise ValueError(f"Unknown element type {element_type}")
+            if not isinstance(element_occurrence, ElementOccurrence):
+                raise ValueError(f"Unknown element occurence {element_occurrence}")
+
+            if element_occurrence is ElementOccurrence.RECURRING:
+                current_array = shared_array
+            else:
+                current_array = unique_array
 
             if element_type == ElementType.CHAR:
                 page.update(element_name, ElementType.CHAR, current_array[0])
@@ -204,7 +250,7 @@ def get_pages(info: bytearray, encoding: str = "UTF-8") -> List[UsmPage]:
                 # Should be caught at element_type's initialization
                 raise ValueError(f"Unknown element type: {element_type}")
 
-            if element_occurrence == ArrayType.SHARED.value:
+            if element_occurrence is ElementOccurrence.RECURRING:
                 shared_array = shared_array[element_size:]
             else:
                 unique_array = unique_array[element_size:]
@@ -274,11 +320,11 @@ def pack_pages(
         for element_name, element in page.dict.items():
             element_type_packed = int(element.type.value)
             if element_name in common_elements:
-                # We only need to encode data once since it's recurring for the same key
+                # We only need to encode payload once since it's recurring for the same key
                 if i != 0:
                     continue
 
-                element_type_packed += int(ArrayType.SHARED.value) << 5
+                element_type_packed += int(ElementOccurrence.RECURRING.value) << 5
                 shared_array += element_type_packed.to_bytes(1, "big")
 
                 element_name_offset = elements[element_name][0]
@@ -286,10 +332,12 @@ def pack_pages(
 
                 current_array = shared_array
             else:
-                # We only need to encode data **about** non-recurring values once
-                # But we encode actual data every time since they're not recurring
+                # We only need to encode payload **about** non-recurring values once
+                # But we encode actual payload every time since they're not recurring
                 if i == 0:
-                    element_type_packed += int(ArrayType.UNIQUE.value) << 5
+                    element_type_packed += (
+                        int(ElementOccurrence.NON_RECURRING.value) << 5
+                    )
                     shared_array += element_type_packed.to_bytes(1, "big")
 
                     element_name_offset = elements[element_name][0]

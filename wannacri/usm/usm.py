@@ -46,7 +46,7 @@ class Usm:
         version: int = 16777984,
     ) -> None:
         if len(video) == 0:
-            raise ValueError("No videos given.")
+            raise ValueError("No video given.")
 
         if audio is None:
             self.audios = []
@@ -61,11 +61,15 @@ class Usm:
         self._usm_crid = usm_crid
         self._max_packet_size = 1
 
-        logging.info("Usm format version: %x", self.version)
         logging.info(
-            "%d videos channels and %d audios channels given",
-            len(self.videos),
-            len(self.audios),
+            "Initialising USM",
+            extra={
+                "version": self.version,
+                "is_key_given": False if key is None else True,
+                "is_usm_crid_given": False if usm_crid is None else True,
+                "num_videos": len(self.videos),
+                "num_audios": len(self.audios),
+            },
         )
 
         self.max_frame = 0
@@ -79,7 +83,6 @@ class Usm:
             self.video_key: Optional[bytes] = None
             self.audio_key: Optional[bytes] = None
         else:
-            logging.info("Key provided")
             self.video_key, self.audio_key = generate_keys(key)
 
     @property
@@ -138,10 +141,13 @@ class Usm:
         usmfile = open(filepath, "rb")
         filename = os.path.basename(filepath)
         logging.info(
-            "Loading Usm from file. File: %s, File size: %d, Encoding: %s",
-            filename,
-            filesize,
-            encoding,
+            "Loading USM from file.",
+            extra={
+                "usm_name": filename,
+                "size": filesize,
+                "encoding": encoding,
+                "is_key_given": False if key is None else True,
+            },
         )
 
         signature = usmfile.read(4)
@@ -232,7 +238,7 @@ class Usm:
         if os.path.exists(output) and os.path.isfile(output):
             raise FileExistsError
 
-        os.makedirs(output)
+        os.makedirs(output, exist_ok=True)
 
         videos = []
         audios = []
@@ -394,21 +400,19 @@ def _process_chunks(
         chunk_size, chunk_padding = chunk_size_and_padding(temp_buf)
         offset = usmfile.tell()
 
-        # Read chunk data and the 0x20 byte chunk header. Then skip _padding.
+        # Read chunk payload and the 0x20 byte chunk header. Then skip _padding.
         data = usmfile.read(chunk_size + 0x20)
         usmfile.seek(chunk_padding, 1)
 
         chunk = UsmChunk.from_bytes(data, encoding=encoding)
-        if chunk.payload_type is not prev_payload_type:
-            logging.info("New Usm section at %x hex offset", offset)
 
         if chunk.chunk_type is ChunkType.INFO:
             if isinstance(chunk.payload, list):
                 crids.extend(chunk.payload)
             else:
                 logging.warning(
-                    "_process_chunk: Received info chunk that's not a list %s",
-                    chunk.payload,
+                    "Received info chunk payload that's not a list",
+                    extra={"payload": chunk.payload},
                 )
         elif chunk.chunk_type is ChunkType.VIDEO:
             if chunk.payload_type == PayloadType.STREAM:
@@ -418,12 +422,19 @@ def _process_chunks(
             elif chunk.payload_type == PayloadType.SECTION_END:
                 if isinstance(chunk.payload, bytes):
                     logging.debug(
-                        "_process_chunk: @SFV section end %s",
-                        bytes_to_hex(chunk.payload),
+                        "@SFV section end",
+                        extra={
+                            "payload": bytes_to_hex(chunk.payload),
+                            "offset": offset,
+                        },
                     )
                 else:
                     logging.debug(
-                        "_process_chunk: @SFV section end %s", str(chunk.payload)
+                        "@SFV section end",
+                        extra={
+                            "payload": chunk.payload,
+                            "offset": offset,
+                        },
                     )
             elif chunk.payload_type == PayloadType.HEADER:
                 video_ch[chunk.channel_number].header = chunk.payload
@@ -438,19 +449,24 @@ def _process_chunks(
             elif chunk.payload_type == PayloadType.SECTION_END:
                 if isinstance(chunk.payload, bytes):
                     logging.debug(
-                        "_process_chunk: @SFA section end %s",
-                        bytes_to_hex(chunk.payload),
+                        "@SFA section end",
+                        extra={
+                            "payload": bytes_to_hex(chunk.payload),
+                            "offset": offset,
+                        },
                     )
                 else:
                     logging.debug(
-                        "_process_chunk: @SFA section end %s", str(chunk.payload)
+                        "@SFA section end",
+                        extra={
+                            "payload": chunk.payload,
+                            "offset": offset,
+                        },
                     )
             elif chunk.payload_type == PayloadType.HEADER:
                 audio_ch[chunk.channel_number].header = chunk.payload
             elif chunk.payload_type == PayloadType.METADATA:
                 audio_ch[chunk.channel_number].metadata = chunk.payload
-
-        prev_payload_type = chunk.payload_type
 
     return crids, video_ch, audio_ch
 

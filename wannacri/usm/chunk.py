@@ -4,7 +4,7 @@ from typing import List, Union, Callable
 
 from .types import ChunkType, PayloadType
 from .page import UsmPage, pack_pages, get_pages
-from .tools import bytes_to_hex, is_valid_chunk
+from .tools import bytes_to_hex, is_valid_chunk, is_payload_list_pages
 
 
 class UsmChunk:
@@ -60,62 +60,83 @@ class UsmChunk:
     @classmethod
     def from_bytes(cls, chunk: bytes, encoding: str = "UTF-8") -> UsmChunk:
         chunk = bytearray(chunk)
-        signature = chunk[:0x4]
+        try:
+            chunk_type: Union[ChunkType, bytes] = ChunkType.from_bytes(chunk[:0x4])
+        except ValueError:
+            chunk_type = chunk[:0x4]
 
         chunksize = int.from_bytes(chunk[0x4:0x8], "big")
         # r08: 1 byte
         payload_offset = chunk[0x9]
-        padding = int.from_bytes(chunk[0xA:0xC], "big")
+        padding_size = int.from_bytes(chunk[0xA:0xC], "big")
         channel_number = chunk[0xC]
         # r0D: 1 byte
         # r0E: 1 byte
 
-        payload_type = PayloadType.from_int(chunk[0xF] & 0x3)
+        try:
+            payload_type: Union[PayloadType, int] = PayloadType.from_int(
+                chunk[0xF] & 0x3
+            )
+        except ValueError:
+            payload_type = chunk[0xF]
 
         frame_time = int.from_bytes(chunk[0x10:0x14], "big")
         frame_rate = int.from_bytes(chunk[0x14:0x18], "big")
         # r18: 4 bytes
         # r1C: 4 bytes
 
+        payload_begin = 0x08 + payload_offset
+        payload_size = chunksize - padding_size - payload_offset
+        payload_raw = chunk[payload_begin : payload_begin + payload_size]
+
+        # Leave a note before we die
         logging.debug(
-            "UsmChunk: Chunk type: %s, chunk size: %x, r08: %x, payload offset: %x "
-            + "padding: %x, chno: %x, r0D: %x, r0E: %x, payload type: %s "
-            + "frame time: %x, frame rate: %d, r18: %s, r1C: %s",
-            bytes_to_hex(signature),
-            chunksize,
-            chunk[0x8],
-            payload_offset,
-            padding,
-            channel_number,
-            chunk[0xD],
-            chunk[0xE],
-            payload_type,
-            frame_time,
-            frame_rate,
-            bytes_to_hex(chunk[0x18:0x1C]),
-            bytes_to_hex(chunk[0x1C:0x20]),
+            "Chunk info",
+            extra={
+                "type": chunk_type
+                if isinstance(chunk_type, ChunkType)
+                else bytes_to_hex(chunk_type),
+                "chunksize_after_header": chunksize,
+                "r08": chunk[0x8],
+                "payload_offset": payload_offset,
+                "padding_size": padding_size,
+                "channel_number": channel_number,
+                "r0D_r0E": bytes_to_hex(chunk[0xD:0xF]),
+                "payload_type": payload_type,
+                "frame_time": frame_time,
+                "frame_rate": frame_rate,
+                "r18_r1B": bytes_to_hex(chunk[0x18:0x1C]),
+                "r1C_r1F": bytes_to_hex(chunk[0x1C:0x20]),
+                "payload_first_four_bytes": bytes_to_hex(payload_raw[:4]),
+            },
         )
 
-        if not is_valid_chunk(signature):
-            raise ValueError(f"Invalid signature: {bytes_to_hex(signature)}")
+        if not isinstance(chunk_type, ChunkType):
+            raise ValueError(f"Invalid signature: {bytes_to_hex(chunk_type)}")
 
-        payload_begin = 0x08 + payload_offset
-        payload_size = chunksize - padding - payload_offset
-        payload: bytearray = chunk[payload_begin : payload_begin + payload_size]
+        if not isinstance(payload_type, PayloadType):
+            raise ValueError(f"Invalid payload type: {payload_type}")
 
-        # Get pages for header and seek payload types
-        if payload_type in [PayloadType.HEADER, PayloadType.METADATA]:
-            payload: List[UsmPage] = get_pages(payload, encoding)
-            for page in payload:
-                logging.debug("Name: %s, Contents: %s", page.name, page.dict)
+        if is_payload_list_pages(payload_raw[:4]):
+            payload: Union[List[UsmPage], bytearray] = get_pages(payload_raw, encoding)
+            logging.debug(
+                "Page list payload content",
+                extra={
+                    "page_name": payload[0].name if len(payload) > 0 else None,
+                    "num_entries": len(payload),
+                    "contents": [page.dict for page in payload],
+                },
+            )
+        else:
+            payload = payload_raw
 
         return cls(
-            ChunkType.from_bytes(signature),
+            chunk_type,
             payload_type,
             payload,
             frame_rate,
             frame_time=frame_time,
-            padding=padding,
+            padding=padding_size,
             channel_number=channel_number,
             payload_offset=payload_begin,
         )
