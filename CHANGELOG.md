@@ -1,0 +1,25 @@
+# Changelog
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+### Added
+- This changelog
+
+## [0.2.0] - 2021-08-11
+### Added
+- __main__.py.
+- is_payload_list_pages function that checks whether payload is a list of pages by its first four bytes.
+
+### Changed
+- Renamed ArrayType to ElementType.
+- UsmChunk from_bytes method now determines payload type by the first four bytes of a payload. 
+- Changed logging format to JSON.
+- is_valid_chunk function no longer recasts byte input to bytearray.
+- Command-line now prints installed version.
+
+### Fixed
+- Fixed bug in extractusm that causes it to fail when output directory doesn't exist.
+- Fixed bug where program fails when directory exists.
