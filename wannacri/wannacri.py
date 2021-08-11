@@ -315,6 +315,7 @@ def main():
         help="Specify operation",
     )
     args, _ = parser.parse_known_args()
+    print(f"WannaCRI {wannacri.__version__}")
 
     OP_DICT[args.operation]()
 
