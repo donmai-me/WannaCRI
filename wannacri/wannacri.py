@@ -293,7 +293,7 @@ def create_usm():
 
     usm = Usm(video=[video], key=args.key)
     with open(filename + ".usm", "wb") as f:
-        mode = None if args.key is None else OpMode.ENCRYPT
+        mode = OpMode.NONE if args.key is None else OpMode.ENCRYPT
 
         for packet in usm.stream(mode, encoding=args.encoding):
             f.write(packet)
