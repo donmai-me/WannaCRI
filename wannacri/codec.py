@@ -14,7 +14,7 @@ class Sofdec2Codec(Enum):
         info = ffmpeg.probe(path, cmd=ffprobe_path)
 
         if len(info.get("streams")) == 0:
-            raise ValueError("File has no videos streams.")
+            raise ValueError("File has no video streams.")
 
         codec_name = info.get("streams")[0].get("codec_name")
         if codec_name == "vp9":
@@ -26,7 +26,7 @@ class Sofdec2Codec(Enum):
             # TODO: Check if we need to have extra checks on h264 bitstreams
             return Sofdec2Codec.H264
         if codec_name == "mpeg2video":
-            # TODO: Check if we need to have extra checks on h264 bitstreams
+            # TODO: Check if we need to have extra checks on MPEG2 bitstreams
             return Sofdec2Codec.PRIME
 
         raise ValueError(f"Unknown codec {codec_name}")

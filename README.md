@@ -5,12 +5,32 @@ WannaCRI
 A (WIP) Python library for parsing, extracting, and generating Criware's various audio and video file formats.
 If you're interested in reading more about USM, you can read my write-up about it [here](https://listed.to/@donmai/24921/criware-s-usm-format-part-1)
 
-Currently supports the following formats with more planned:
-* USM (encrypted and plaintext)
-    * VP9
-    * H.264 (in-progress)
+Support
+=======
+This currently supports the following formats with more planned:
 
+✅: Implemented and tested ❓: Should work but not tested ❌: Not implemented
 
+x/y: Extract support / Create support
+
+## USM
+
+### Video
+
+| Codec | Not-encrypted | Encrypted |
+| ----- | ----- | ----- |
+| VP9 | ✅ / ✅  | ✅ / ✅  |
+| H.264 | ✅ / ❌ | ❓ / ❌ |
+| Prime | ❓ / ❌ | ❓ / ❌ |
+
+### Audio
+
+| Codec | Not-encrypted | Encrypted |
+| ----- | ----- | ----- |
+| CRI HCA | ✅ / ❌ | ✅ / ❌ |
+
+Requirements
+============
 This library has the following requirements:
 
 A working FFmpeg and FFprobe installation. On Windows, you can download official ffmpeg and ffprobe binaries and place them on your path.
