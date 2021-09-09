@@ -160,7 +160,7 @@ def probe_usm():
                 "path": usmfile.replace(args.input, ""),
                 "version": wannacri.__version__,
                 "os": f"{platform.system()} {platform.release()}",
-                "is_local_ffprobe": False if ffprobe_path is None else True,
+                "is_local_ffprobe": ffprobe_path is not None,
             },
         )
 
@@ -320,23 +320,23 @@ def main():
     OP_DICT[args.operation]()
 
 
-def find_usm(path: str) -> List[str]:
+def find_usm(directory: str) -> List[str]:
     """Walks a path to find USMs."""
-    if os.path.isfile(path):
-        with open(path, "rb") as test:
+    if os.path.isfile(directory):
+        with open(directory, "rb") as test:
             if not is_usm(test.read(4)):
                 raise ValueError("Not a usm file.")
 
-        return [path]
+        return [directory]
 
     print("Finding USM files... ", end="", flush=True)
     usmfiles = []
-    for path, _, files in os.walk(path):
+    for path, _, files in os.walk(directory):
         for f in files:
-            path = os.path.join(path, f)
-            with open(path, "rb") as test:
+            filepath = os.path.join(path, f)
+            with open(filepath, "rb") as test:
                 if is_usm(test.read(4)):
-                    usmfiles.append(path)
+                    usmfiles.append(filepath)
 
     print(f"Found {len(usmfiles)}")
     return usmfiles
