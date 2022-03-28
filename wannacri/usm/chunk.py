@@ -74,13 +74,6 @@ class UsmChunk:
         # r0D: 1 byte
         # r0E: 1 byte
 
-        try:
-            payload_type: Union[PayloadType, int] = PayloadType.from_int(
-                chunk[0xF] & 0x3
-            )
-        except ValueError:
-            payload_type = chunk[0xF]
-
         frame_time = int.from_bytes(chunk[0x10:0x14], "big")
         frame_rate = int.from_bytes(chunk[0x14:0x18], "big")
         # r18: 4 bytes
@@ -90,7 +83,16 @@ class UsmChunk:
         payload_size = chunksize - padding_size - payload_offset
         payload_raw = chunk[payload_begin : payload_begin + payload_size]
 
-        # Leave a note before we die
+        try:
+            payload_type: Union[PayloadType, int] = PayloadType.from_int(
+                chunk[0xF] & 0x3
+            )
+        except ValueError:
+            logging.debug(
+                "Chunk unknown payload", extra={"payload": bytes_to_hex(payload_raw)}
+            )
+            payload_type = chunk[0xF]
+
         logging.debug(
             "Chunk info",
             extra={
@@ -108,7 +110,6 @@ class UsmChunk:
                 "frame_rate": frame_rate,
                 "r18_r1B": bytes_to_hex(chunk[0x18:0x1C]),
                 "r1C_r1F": bytes_to_hex(chunk[0x1C:0x20]),
-                "payload": bytes_to_hex(payload_raw),
             },
         )
 
