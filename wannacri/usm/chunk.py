@@ -4,7 +4,7 @@ from typing import List, Union, Callable
 
 from .types import ChunkType, PayloadType
 from .page import UsmPage, pack_pages, get_pages
-from .tools import bytes_to_hex, is_valid_chunk, is_payload_list_pages
+from .tools import bytes_to_hex, is_payload_list_pages
 
 
 class UsmChunk:
@@ -59,6 +59,7 @@ class UsmChunk:
 
     @classmethod
     def from_bytes(cls, chunk: bytes, encoding: str = "UTF-8") -> UsmChunk:
+        """Initialise UsmChunk from raw bytes."""
         chunk = bytearray(chunk)
         try:
             chunk_type: Union[ChunkType, bytes] = ChunkType.from_bytes(chunk[:0x4])
@@ -107,7 +108,7 @@ class UsmChunk:
                 "frame_rate": frame_rate,
                 "r18_r1B": bytes_to_hex(chunk[0x18:0x1C]),
                 "r1C_r1F": bytes_to_hex(chunk[0x1C:0x20]),
-                "payload_first_four_bytes": bytes_to_hex(payload_raw[:4]),
+                "payload": bytes_to_hex(payload_raw),
             },
         )
 
@@ -142,6 +143,7 @@ class UsmChunk:
         )
 
     def pack(self) -> bytes:
+        """Transform UsmChunk to raw bytes."""
         result = bytearray()
         result += self.chunk_type.value
 

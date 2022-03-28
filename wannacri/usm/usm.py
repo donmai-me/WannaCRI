@@ -146,7 +146,7 @@ class Usm:
                 "usm_name": filename,
                 "size": filesize,
                 "encoding": encoding,
-                "is_key_given": False if key is None else True,
+                "is_key_given": key is None,
             },
         )
 
@@ -159,7 +159,7 @@ class Usm:
             usmfile, filesize, encoding
         )
 
-        # We don't need a mutex because of the GIL but it feels dirty without one
+        # We don't need a mutex because of the GIL, but it feels dirty without one
         usmmutex = threading.Lock()
         videos = []
         audios = []
@@ -391,7 +391,6 @@ def _process_chunks(
     )
 
     usmfile.seek(0, 0)
-    prev_payload_type = PayloadType.HEADER
     while filesize > usmfile.tell():
         # Peek to read chunk's true size and _padding.
         temp_buf = usmfile.read(0x20)
@@ -404,7 +403,15 @@ def _process_chunks(
         data = usmfile.read(chunk_size + 0x20)
         usmfile.seek(chunk_padding, 1)
 
-        chunk = UsmChunk.from_bytes(data, encoding=encoding)
+        try:
+            chunk = UsmChunk.from_bytes(data, encoding=encoding)
+        except ValueError as e:
+            # If in debug mode, continue gathering information about the problematic usm
+            if logging.root.level <= logging.DEBUG:
+                logging.error(e)
+                continue
+            else:
+                raise
 
         if chunk.chunk_type is ChunkType.INFO:
             if isinstance(chunk.payload, list):
