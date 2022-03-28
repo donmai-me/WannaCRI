@@ -187,7 +187,8 @@ class Usm:
                     ),
                     crid[0],
                     video_channel.header,
-                    channel_number,
+                    len(video_channel.stream),
+                    channel_number=channel_number,
                 )
             )
 
@@ -207,7 +208,8 @@ class Usm:
                     audio_sink(usmfile, usmmutex, audio_channel.stream),
                     crid[0],
                     audio_channel.header,
-                    channel_number,
+                    len(audio_channel.stream),
+                    channel_number=channel_number,
                 )
             )
 
@@ -444,7 +446,7 @@ def _process_chunks(
                         },
                     )
             elif chunk.payload_type == PayloadType.HEADER:
-                video_ch[chunk.channel_number].header = chunk.payload
+                video_ch[chunk.channel_number].header = chunk.payload[0]
             elif chunk.payload_type == PayloadType.METADATA:
                 video_ch[chunk.channel_number].metadata = chunk.payload
 
@@ -471,7 +473,7 @@ def _process_chunks(
                         },
                     )
             elif chunk.payload_type == PayloadType.HEADER:
-                audio_ch[chunk.channel_number].header = chunk.payload
+                audio_ch[chunk.channel_number].header = chunk.payload[0]
             elif chunk.payload_type == PayloadType.METADATA:
                 audio_ch[chunk.channel_number].metadata = chunk.payload
 

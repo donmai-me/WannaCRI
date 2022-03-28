@@ -264,7 +264,7 @@ def pack_pages(
     string_padding: int = 0,
 ) -> bytes:
     if len(pages) == 0:
-        raise ValueError("No pages given.")
+        return bytes()
 
     page_name = pages[0].name
     keys = set()
