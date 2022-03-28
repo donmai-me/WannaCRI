@@ -18,10 +18,10 @@ x/y: Extract support / Create support
 ### Video
 
 | Codec | Not-encrypted | Encrypted |
-| ----- | ----- | ----- |
-| VP9 | ✅ / ✅  | ✅ / ✅  |
-| H.264 | ✅ / ❌ | ❓ / ❌ |
-| Prime | ❓ / ❌ | ❓ / ❌ |
+| ----- | ----- |-----------|
+| VP9 | ✅ / ✅  | ✅ / ✅     |
+| H.264 | ✅ / ❌ | ✅ / ❌     |
+| Prime | ❓ / ❌ | ❓ / ❌     |
 
 ### Audio
 
