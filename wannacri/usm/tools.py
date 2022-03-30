@@ -53,9 +53,6 @@ def is_payload_list_pages(payload: bytes) -> bool:
 
 def chunk_size_and_padding(header: bytes) -> Tuple[int, int]:
     header = bytearray(header)
-    signature = header[0:4]
-    if not is_valid_chunk(signature):
-        raise ValueError("Invalid signature")
 
     size = int.from_bytes(header[4:8], "big")
     offset = header[9]
