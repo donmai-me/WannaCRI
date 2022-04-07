@@ -1,6 +1,7 @@
 import logging
 import os
 import argparse
+import pathlib
 import platform
 import shutil
 import string
@@ -13,7 +14,7 @@ from pythonjsonlogger import jsonlogger
 
 import wannacri
 from .codec import Sofdec2Codec
-from .usm import is_usm, Usm, Vp9, OpMode
+from .usm import is_usm, Usm, Vp9, OpMode, generate_keys
 
 
 def extract_usm():
@@ -291,7 +292,7 @@ def create_usm():
     video = Vp9(args.input, ffprobe_path=ffprobe_path)
     filename = os.path.splitext(args.input)[0]
 
-    usm = Usm(video=[video], key=args.key)
+    usm = Usm(videos=[video], key=args.key)
     with open(filename + ".usm", "wb") as f:
         mode = OpMode.NONE if args.key is None else OpMode.ENCRYPT
 
@@ -301,7 +302,53 @@ def create_usm():
     print("Done creating USM file.")
 
 
-OP_DICT = {"extractusm": extract_usm, "createusm": create_usm, "probeusm": probe_usm}
+def encrypt_usm():
+    parser = argparse.ArgumentParser("WannaCRI Encrypt USM/s", allow_abbrev=False)
+    parser.add_argument(
+        "operation",
+        metavar="operation",
+        type=str,
+        choices=OP_LIST,
+        help="Specify operation.",
+    )
+    parser.add_argument(
+        "input",
+        metavar="input file path",
+        type=existing_path,
+        help="Path to usm file or directory of usm files.",
+    )
+    parser.add_argument(
+        "key", type=key, help="Encryption key."
+    )
+    parser.add_argument(
+        "-e",
+        "--encoding",
+        type=str,
+        default="shift-jis",
+        help="Character encoding used in creating USM. Defaults to shift-jis.",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=dir_path,
+        default=None,
+        help="Output path. Defaults to the same place as input.",
+    )
+    args = parser.parse_args()
+
+    outdir = dir_or_parent_dir(args.input) if args.output is None else pathlib.Path(args.output)
+    usmfiles = find_usm(args.input)
+
+    for filepath in usmfiles:
+        filename = pathlib.PurePath(filepath).name
+        usm = Usm.open(filepath)
+        usm.video_key, usm.audio_key = generate_keys(args.key)
+        with open(outdir.joinpath(filename), "wb") as out:
+            for packet in usm.stream(OpMode.ENCRYPT, encoding=args.encoding):
+                out.write(packet)
+
+
+OP_DICT = {"extractusm": extract_usm, "createusm": create_usm, "probeusm": probe_usm, "encryptusm": encrypt_usm}
 OP_LIST = list(OP_DICT.keys())
 
 
@@ -391,3 +438,10 @@ def dir_path(path) -> str:
         raise FileExistsError(path)
 
     return path.rstrip("/\\")
+
+def dir_or_parent_dir(path) -> pathlib.Path:
+    path = pathlib.Path(path)
+    if path.is_dir():
+        return path.parent.resolve()
+
+    return path

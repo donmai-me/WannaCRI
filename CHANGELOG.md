@@ -5,18 +5,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
-## Removed
+### Added
+- New operation in command-line called `encryptusm` which encrypts an existing USM file.
+
+### Removed
 - Check for chunk header in `chunk_size_and_padding` function
 
 ## [0.2.4] - 2022-03-28
-## Changed
+### Changed
 - pack\_pages function now return an empty byte when given an empty list instead of throwing an exception.
 
-## Fixed
+### Fixed
 - Fixed GenericVideo initialization in Usm open method.
 
 ## [0.2.3] - 2022-03-28
-## Changed
+### Changed
 - Improved USM probe handling of unknown chunks
 
 ## [0.2.2] - 2021-09-09
