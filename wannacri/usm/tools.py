@@ -39,6 +39,7 @@ def is_valid_chunk(signature: bytes) -> bool:
         bytes("CRID", "UTF-8"),  # CRI USF DIR STREAM
         bytes("@SFV", "UTF-8"),  # Video
         bytes("@SFA", "UTF-8"),  # Audio
+        bytes("@ALP", "UTF-8")
     ]
     return signature[:4] in valid_signatures
 

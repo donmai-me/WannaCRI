@@ -4,9 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.2.5] - 2022-04-08
 ### Added
 - New operation in command-line called `encryptusm` which encrypts an existing USM file.
+- Support for new USM Chunk `@ALP` which is used for alpha transparency videos. Currently, supports probe and extraction operations only. Thank you to [EmirioBomb](https://github.com/EmirioBomb) for bringing this to my attention and providing sample files.
+
+### Changed
+- Renamed Usm constructor parameters.
 
 ### Removed
 - Check for chunk header in `chunk_size_and_padding` function
@@ -49,7 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed bug in extractusm that causes it to fail when output directory doesn't exist.
 - Fixed bug where program fails when directory exists.
 
-[Unreleased]: https://github.com/donmai-me/WannaCRI/compare/0.2.4...HEAD
+[Unreleased]: https://github.com/donmai-me/WannaCRI/compare/0.2.5...HEAD
+[0.2.5]: https://github.com/donmai-me/WannaCRI/compare/0.2.4...0.2.5
 [0.2.4]: https://github.com/donmai-me/WannaCRI/compare/0.2.3...0.2.4
 [0.2.3]: https://github.com/donmai-me/WannaCRI/compare/0.2.2...0.2.3
 [0.2.2]: https://github.com/donmai-me/WannaCRI/compare/0.2.1...0.2.2

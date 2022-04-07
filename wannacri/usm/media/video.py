@@ -21,6 +21,7 @@ class GenericVideo(UsmVideo):
         length: int,
         channel_number: int = 0,
         metadata_pages: Optional[List[UsmPage]] = None,
+        is_alpha: bool = False,
     ):
         self._stream = stream
         self._crid_page = crid_page
@@ -28,6 +29,7 @@ class GenericVideo(UsmVideo):
         self._length = length
         self._channel_number = channel_number
         self._metadata_pages = metadata_pages
+        self.is_alpha = is_alpha
 
 
 class Vp9(UsmVideo):

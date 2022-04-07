@@ -39,23 +39,30 @@ class UsmChannel:
 class Usm:
     def __init__(
         self,
-        video: List[UsmVideo],
-        audio: Optional[List[UsmAudio]] = None,
+        videos: List[UsmVideo],
+        audios: Optional[List[UsmAudio]] = None,
+        alphas: Optional[List[UsmVideo]] = None,
         key: Optional[int] = None,
         usm_crid: Optional[UsmPage] = None,
         version: int = 16777984,
     ) -> None:
-        if len(video) == 0:
+        if len(videos) == 0:
             raise ValueError("No video given.")
 
-        if audio is None:
+        if audios is None:
             self.audios = []
         else:
-            self.audios = audio
+            self.audios = audios
             self.audios.sort()
 
+        if alphas is None:
+            self.alphas = []
+        else:
+            self.alphas = alphas
+            self.alphas.sort()
+
         self.version = version
-        self.videos = video
+        self.videos = videos
         self.videos.sort()
 
         self._usm_crid = usm_crid
@@ -65,10 +72,11 @@ class Usm:
             "Initialising USM",
             extra={
                 "version": self.version,
-                "is_key_given": False if key is None else True,
-                "is_usm_crid_given": False if usm_crid is None else True,
+                "is_key_given": key is not None,
+                "is_usm_crid_given": usm_crid is not None,
                 "num_videos": len(self.videos),
                 "num_audios": len(self.audios),
+                "num_alphas": len(self.alphas),
             },
         )
 
@@ -146,7 +154,7 @@ class Usm:
                 "usm_name": filename,
                 "size": filesize,
                 "encoding": encoding,
-                "is_key_given": key is None,
+                "is_key_given": key is not None,
             },
         )
 
@@ -155,7 +163,7 @@ class Usm:
         if not is_usm(signature):
             raise ValueError(f"Invalid file signature: {bytes_to_hex(signature)}")
 
-        crids, video_channels, audio_channels = _process_chunks(
+        crids, video_channels, audio_channels, alpha_channels = _process_chunks(
             usmfile, filesize, encoding
         )
 
@@ -163,6 +171,7 @@ class Usm:
         usmmutex = threading.Lock()
         videos = []
         audios = []
+        alphas = []
         version: Optional[int] = None
         for channel_number, video_channel in video_channels.items():
             crid = [
@@ -213,6 +222,28 @@ class Usm:
                 )
             )
 
+        for channel_number, alpha_channel in alpha_channels.items():
+            crid = [page for page in crids if page.get("chno").val == channel_number and page.get("stmid").val == 0x40414C50]
+
+            if len(crid) == 0:
+                raise ValueError(f"No crid page found for video ch {channel_number}")
+
+            alphas.append(
+                GenericVideo(
+                    video_sink(
+                        usmfile,
+                        usmmutex,
+                        alpha_channel.stream,
+                        keyframes_from_seek_pages(alpha_channel.metadata)
+                    ),
+                    crid[0],
+                    alpha_channel.header,
+                    len(alpha_channel.stream),
+                    channel_number=channel_number,
+                    is_alpha=True,
+                )
+            )
+
         usm_crid = [page for page in crids if page.get("chno").val == -1]
         if len(usm_crid) == 0:
             raise ValueError("No usm crid page found.")
@@ -220,7 +251,7 @@ class Usm:
             raise ValueError("Format version not found.")
 
         return cls(
-            version=version, video=videos, audio=audios, key=key, usm_crid=usm_crid[0]
+            version=version, videos=videos, audios=audios, alphas=alphas, key=key, usm_crid=usm_crid[0]
         )
 
     def demux(
@@ -228,10 +259,11 @@ class Usm:
         path: str,
         save_video: bool = True,
         save_audio: bool = True,
+        save_alpha: bool = True,
         save_pages: bool = False,
         folder_name: Optional[str] = None,
     ) -> Tuple[List[str], List[str]]:
-        """Saves all videos, audios, pages (depending on configuration) of a Usm."""
+        """Saves all videos, audios, alpha videos, pages (depending on configuration) of a Usm."""
         if folder_name is None:
             folder_name = self.filename
 
@@ -244,36 +276,34 @@ class Usm:
 
         videos = []
         audios = []
+        alphas = []
+
+        def save(usm_array, output_array, name, key):
+            if len(usm_array) == 0:
+                return
+
+            logging.info(f"Saving {name}")
+            mode = OpMode.NONE if key is None else OpMode.DECRYPT
+            sub_output = os.path.join(output, name)
+            if not os.path.exists(sub_output):
+                os.mkdir(sub_output)
+
+            for item in usm_array:
+                filename = os.path.join(sub_output, item.filename)
+                with open(filename, "wb") as f:
+                    for packet in item.stream(mode, key):
+                        f.write(packet if type(packet) is not tuple else packet[0])
+
+                output_array.append(filename)
 
         if save_video:
-            logging.info("Saving videos")
-            mode = OpMode.NONE if self.video_key is None else OpMode.DECRYPT
-            vid_output = os.path.join(output, "videos")
-            if not os.path.exists(vid_output):
-                os.mkdir(vid_output)
-
-            for vid in self.videos:
-                filename = os.path.join(vid_output, vid.filename)
-                with open(filename, "wb+") as f:
-                    for packet, _ in vid.stream(mode, self.video_key):
-                        f.write(packet)
-
-                videos.append(filename)
+            save(self.videos, videos, "videos", self.video_key)
 
         if save_audio:
-            logging.info("Saving audios")
-            mode = OpMode.NONE if self.audio_key is None else OpMode.DECRYPT
-            aud_output = os.path.join(output, "audios")
-            if not os.path.exists(aud_output):
-                os.mkdir(aud_output)
+            save(self.audios, audios, "audios", self.audio_key)
 
-            for aud in self.audios:
-                filename = os.path.join(aud_output, aud.filename)
-                with open(filename, "wb+") as f:
-                    for packet in aud.stream(mode, self.audio_key):
-                        f.write(packet)
-
-                audios.append(filename)
+        if save_alpha:
+            save(self.alphas, alphas, "alphas", self.video_key)
 
         if save_pages:
             logging.info("Saving pages")
@@ -379,11 +409,39 @@ class Usm:
             yield stream_file.read(0x800)
 
 
+def _chunk_helper(default_dict_ch: Dict[int, UsmChannel], chunk: UsmChunk, offset: int):
+    """Helper function for _process_chunks. Fills default_dict_ch with information about
+    the passed chunk and offset."""
+    if chunk.payload_type == PayloadType.STREAM:
+        default_dict_ch[chunk.channel_number].stream.append(
+            (offset + chunk.payload_offset, len(chunk.payload))
+        )
+    elif chunk.payload_type == PayloadType.SECTION_END:
+        logging.debug(
+            f"{chunk.chunk_type} section end",
+            extra={
+                "payload": bytes_to_hex(chunk.payload) if isinstance(chunk.payload, bytes) else chunk.payload,
+                "offset": offset,
+            },
+        )
+    elif chunk.payload_type == PayloadType.HEADER:
+        default_dict_ch[chunk.channel_number].header = chunk.payload[0]
+    elif chunk.payload_type == PayloadType.METADATA:
+        default_dict_ch[chunk.channel_number].metadata = chunk.payload
+    else:
+        raise ValueError(f"Unknown payload type: {chunk.payload_type}")
+
+
 def _process_chunks(
-    usmfile: IO,
-    filesize: int,
-    encoding: str,
-) -> Tuple[List[UsmPage], Dict[int, UsmChannel], Dict[int, UsmChannel]]:
+        usmfile: IO,
+        filesize: int,
+        encoding: str,
+) -> Tuple[List[UsmPage], Dict[int, UsmChannel], Dict[int, UsmChannel], Dict[int, UsmChannel]]:
+    """Helper function that reads all the chunks in a USM file and returns a tuple of
+    1. A list of USM pages about the contents of the USM file.
+    2. A dictionary of USM video channels.
+    3. A dictionary of USM audio channels.
+    4. A dictionary of USM alpha video channels."""
     crids: List[UsmPage] = []
     video_ch: Dict[int, UsmChannel] = defaultdict(
         lambda: UsmChannel(stream=[], header=UsmPage(""))
@@ -391,6 +449,7 @@ def _process_chunks(
     audio_ch: Dict[int, UsmChannel] = defaultdict(
         lambda: UsmChannel(stream=[], header=UsmPage(""))
     )
+    alpha_ch: Dict[int, UsmChannel] = defaultdict(lambda: UsmChannel(stream=[], header=UsmPage("")))
 
     usmfile.seek(0, 0)
     while filesize > usmfile.tell():
@@ -423,61 +482,19 @@ def _process_chunks(
                     "Received info chunk payload that's not a list",
                     extra={"payload": chunk.payload},
                 )
+        # Video chunk
         elif chunk.chunk_type is ChunkType.VIDEO:
-            if chunk.payload_type == PayloadType.STREAM:
-                video_ch[chunk.channel_number].stream.append(
-                    (offset + chunk.payload_offset, len(chunk.payload))
-                )
-            elif chunk.payload_type == PayloadType.SECTION_END:
-                if isinstance(chunk.payload, bytes):
-                    logging.debug(
-                        "@SFV section end",
-                        extra={
-                            "payload": bytes_to_hex(chunk.payload),
-                            "offset": offset,
-                        },
-                    )
-                else:
-                    logging.debug(
-                        "@SFV section end",
-                        extra={
-                            "payload": chunk.payload,
-                            "offset": offset,
-                        },
-                    )
-            elif chunk.payload_type == PayloadType.HEADER:
-                video_ch[chunk.channel_number].header = chunk.payload[0]
-            elif chunk.payload_type == PayloadType.METADATA:
-                video_ch[chunk.channel_number].metadata = chunk.payload
+            _chunk_helper(video_ch, chunk, offset)
 
+        # Alpha chunk
+        elif chunk.chunk_type is ChunkType.ALPHA:
+            _chunk_helper(alpha_ch, chunk, offset)
+
+        # Audio chunk
         elif chunk.chunk_type is ChunkType.AUDIO:
-            if chunk.payload_type == PayloadType.STREAM:
-                audio_ch[chunk.channel_number].stream.append(
-                    (offset + chunk.payload_offset, len(chunk.payload))
-                )
-            elif chunk.payload_type == PayloadType.SECTION_END:
-                if isinstance(chunk.payload, bytes):
-                    logging.debug(
-                        "@SFA section end",
-                        extra={
-                            "payload": bytes_to_hex(chunk.payload),
-                            "offset": offset,
-                        },
-                    )
-                else:
-                    logging.debug(
-                        "@SFA section end",
-                        extra={
-                            "payload": chunk.payload,
-                            "offset": offset,
-                        },
-                    )
-            elif chunk.payload_type == PayloadType.HEADER:
-                audio_ch[chunk.channel_number].header = chunk.payload[0]
-            elif chunk.payload_type == PayloadType.METADATA:
-                audio_ch[chunk.channel_number].metadata = chunk.payload
+            _chunk_helper(audio_ch, chunk, offset)
 
-    return crids, video_ch, audio_ch
+    return crids, video_ch, audio_ch, alpha_ch
 
 
 def _generate_header_metadata_chunks(

@@ -8,6 +8,7 @@ class ChunkType(Enum):
     INFO = bytearray("CRID", "UTF-8")
     VIDEO = bytearray("@SFV", "UTF-8")
     AUDIO = bytearray("@SFA", "UTF-8")
+    ALPHA = bytearray("@ALP", "UTF-8")
 
     @staticmethod
     def from_bytes(data: bytes) -> ChunkType:
@@ -18,6 +19,9 @@ class ChunkType(Enum):
                 return enum_type
 
         raise ValueError(f"Unknown chunk signature: {bytes_to_hex(data[:4])}")
+
+    def __str__(self):
+        return str(self.value, "UTF-8")
 
 
 class PayloadType(Enum):
@@ -61,7 +65,7 @@ class ElementType(Enum):
     ULONGLONG = 0x17  # 8 bytes
     FLOAT = 0x18  # 4 bytes
     # TODO: Confirm DOUBLE's existence
-    # DOUBLE = 0x19 # 8 bytes
+    # DOUBLE = 0x19  # 8 bytes
     STRING = 0x1A  # Null byte terminated
     BYTES = 0x1B  # Bytes
 
