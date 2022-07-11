@@ -20,7 +20,7 @@ x/y: Extract support / Create support
 | Codec | Not-encrypted | Encrypted |
 | ----- | ----- |-----------|
 | VP9 | ✅ / ✅  | ✅ / ✅     |
-| H.264 | ✅ / ❌ | ✅ / ❌     |
+| H.264 | ✅ / ✅ | ✅ / ❓     |
 | Prime | ❓ / ❌ | ❓ / ❌     |
 
 ### Audio
