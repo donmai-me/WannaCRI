@@ -14,7 +14,7 @@ from pythonjsonlogger import jsonlogger
 
 import wannacri
 from .codec import Sofdec2Codec
-from .usm import is_usm, Usm, Vp9, OpMode, generate_keys
+from .usm import is_usm, Usm, Vp9, H264, OpMode, generate_keys
 
 
 def extract_usm():
@@ -286,18 +286,21 @@ def create_usm():
 
     # TODO: Add support for more video codecs and audio codecs
     codec = Sofdec2Codec.from_file(args.input)
-    if codec is not Sofdec2Codec.VP9:
-        raise NotImplementedError("Non-Vp9 files are not yet implemented.")
+    if codec is Sofdec2Codec.VP9 or codec is Sofdec2Codec.H264:
+        if codec is Sofdec2Codec.VP9:
+            video = Vp9(args.input, ffprobe_path=ffprobe_path)
+        elif codec is Sofdec2Codec.H264:
+            video = H264(args.input, ffprobe_path=ffprobe_path)
+        filename = os.path.splitext(args.input)[0]
 
-    video = Vp9(args.input, ffprobe_path=ffprobe_path)
-    filename = os.path.splitext(args.input)[0]
+        usm = Usm(videos=[video], key=args.key)
+        with open(filename + ".usm", "wb") as f:
+            mode = OpMode.NONE if args.key is None else OpMode.ENCRYPT
 
-    usm = Usm(videos=[video], key=args.key)
-    with open(filename + ".usm", "wb") as f:
-        mode = OpMode.NONE if args.key is None else OpMode.ENCRYPT
-
-        for packet in usm.stream(mode, encoding=args.encoding):
-            f.write(packet)
+            for packet in usm.stream(mode, encoding=args.encoding):
+                f.write(packet)
+    else:
+        raise NotImplementedError("Non-Vp9/H.264 files are not yet implemented.")
 
     print("Done creating USM file.")
 

@@ -116,3 +116,88 @@ class Vp9(UsmVideo):
         self._length = len(frames)
         self._channel_number = channel_number
         self._metadata_pages = None
+
+class H264(UsmVideo):
+    def __init__(
+        self,
+        filepath: str,
+        channel_number: int = 0,
+        format_version: int = 0,
+        ffprobe_path: Optional[str] = None,
+    ):
+        if ffprobe_path is None:
+            info = ffmpeg.probe(filepath, show_entries="packet=dts,pts_time,pos,flags")
+        else:
+            info = ffmpeg.probe(
+                filepath,
+                cmd=ffprobe_path,
+                show_entries="packet=dts,pts_time,pos,flags",
+            )
+
+        if len(info.get("streams")) == 0:
+            raise ValueError("File has no videos streams.")
+        if info.get("format").get("format_name") != "h264" :
+            raise ValueError("File is not a raw H.264 video stream.")
+        if info.get("streams")[0].get("codec_name") != "h264":
+            raise ValueError("File is not a valid H.264 stream.")
+
+        filesize = os.path.getsize(filepath)
+        filename = os.path.basename(filepath)
+
+        video_stream = info.get("streams")[0]
+        framerate = int(video_stream.get("r_frame_rate").split("/")[0]) / int(
+            video_stream.get("r_frame_rate").split("/")[1]
+        )
+
+        frames = info.get("packets")
+        keyframes = [kf.get("dts") for kf in frames if "K" in kf.get("flags")]
+        max_size = 0
+        sizes = []
+        for i, frame in enumerate(frames):
+            frame_offset = int(frame.get("pos"))
+            if i == len(frames) - 1:
+                frame_size = filesize - frame_offset
+            elif i == 0:
+                frame_size = int(frames[i + 1].get("pos"))
+            else:
+                frame_size = int(frames[i + 1].get("pos")) - frame_offset
+
+            max_size = max(max_size, frame_size)
+            sizes.append(frame_size)
+
+        max_padding_size = 0x20 - (max_size % 0x20) if max_size % 0x20 != 0 else 0
+        max_packed_size = 0x18 + max_size + max_padding_size
+
+        self._crid_page = create_video_crid_page(
+            filename=filename,
+            filesize=filesize,
+            max_size=max_size,
+            format_version=format_version,
+            channel_number=channel_number,
+            bitrate=0,
+        )
+
+        self._header_page = create_video_header_page(
+            num_frames=len(frames),
+            num_keyframes=len(keyframes),
+            framerate=framerate,
+            max_packed_size=max_packed_size,
+            mpeg_codec=5,  # Value for H.264 USMs
+            mpeg_dcprec=11,  # Value for H.264 USMs
+            ffprobe_video_stream=video_stream,
+        )
+
+        def packet_gen(
+            path: str, packet_sizes: List[int], keyframe_indexes: List[int]
+        ) -> Generator[Tuple[bytes, bool], None, None]:
+            video = open(path, "rb")
+            for index, size in enumerate(packet_sizes):
+                is_keyframe = index in keyframe_indexes
+                yield video.read(size), is_keyframe
+
+            video.close()
+
+        self._stream = packet_gen(filepath, sizes, keyframes)
+        self._length = len(frames)
+        self._channel_number = channel_number
+        self._metadata_pages = None
