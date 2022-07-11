@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.3.0] - 2022-07-11
 ### Added
-- Support for H.264 USM creation. Courtesy of [keikei14][https://github.com/keikei14]
+- Support for H.264 USM creation. Courtesy of [keikei14](https://github.com/keikei14)
 - Command `createusm` also now takes m4v h264 files as input.
 
 ## [0.2.5] - 2022-04-08
@@ -58,7 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed bug in extractusm that causes it to fail when output directory doesn't exist.
 - Fixed bug where program fails when directory exists.
 
-[Unreleased]: https://github.com/donmai-me/WannaCRI/compare/0.2.5...HEAD
+[Unreleased]: https://github.com/donmai-me/WannaCRI/compare/0.3.0...HEAD
+[0.3.0]: https://github.com/donmai-me/WannaCRI/compare/0.2.5...0.3.0
 [0.2.5]: https://github.com/donmai-me/WannaCRI/compare/0.2.4...0.2.5
 [0.2.4]: https://github.com/donmai-me/WannaCRI/compare/0.2.3...0.2.4
 [0.2.3]: https://github.com/donmai-me/WannaCRI/compare/0.2.2...0.2.3
