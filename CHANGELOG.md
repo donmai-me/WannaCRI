@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2022-07-11
+### Added
+- Support for H.264 USM creation. Courtesy of [keikei14][https://github.com/keikei14]
+- Command `createusm` also now takes m4v h264 files as input.
+
 ## [0.2.5] - 2022-04-08
 ### Added
 - New operation in command-line called `encryptusm` which encrypts an existing USM file.

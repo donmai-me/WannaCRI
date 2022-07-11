@@ -17,6 +17,69 @@ from .codec import Sofdec2Codec
 from .usm import is_usm, Usm, Vp9, H264, OpMode, generate_keys
 
 
+def create_usm():
+    parser = argparse.ArgumentParser("WannaCRI Create USM", allow_abbrev=False)
+    parser.add_argument(
+        "operation",
+        metavar="operation",
+        type=str,
+        choices=OP_LIST,
+        help="Specify operation.",
+    )
+    parser.add_argument(
+        "input",
+        metavar="input file path",
+        type=existing_file,
+        help="Path to video file.",
+    )
+    parser.add_argument(
+        "-e",
+        "--encoding",
+        type=str,
+        default="shift-jis",
+        help="Character encoding used in creating USM. Defaults to shift-jis.",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=dir_path,
+        default=None,
+        help="Output path. Defaults to the same place as input.",
+    )
+    parser.add_argument(
+        "--ffprobe",
+        type=str,
+        default=".",
+        help="Path to ffprobe executable or directory. Defaults to CWD.",
+    )
+    parser.add_argument(
+        "-k", "--key", type=key, default=None, help="Encryption key for encrypted USMs."
+    )
+    args = parser.parse_args()
+
+    ffprobe_path = find_ffprobe(args.ffprobe)
+
+    # TODO: Add support for more video codecs and audio codecs
+    codec = Sofdec2Codec.from_file(args.input)
+    if codec is Sofdec2Codec.VP9:
+        video = Vp9(args.input, ffprobe_path=ffprobe_path)
+    elif codec is Sofdec2Codec.H264:
+        video = H264(args.input, ffprobe_path=ffprobe_path)
+    else:
+        raise NotImplementedError("Non-Vp9/H.264 files are not yet implemented.")
+
+    filename = os.path.splitext(args.input)[0]
+
+    usm = Usm(videos=[video], key=args.key)
+    with open(filename + ".usm", "wb") as f:
+        mode = OpMode.NONE if args.key is None else OpMode.ENCRYPT
+
+        for packet in usm.stream(mode, encoding=args.encoding):
+            f.write(packet)
+
+    print("Done creating USM file.")
+
+
 def extract_usm():
     """One of the main functions in the command-line program. Extracts a USM or extracts
     multiple USMs given a path as input."""
@@ -240,69 +303,6 @@ def probe_usm():
 
     shutil.rmtree(temp_dir)
     print(f'Probe complete. All logs are stored in "{args.output}" folder')
-
-
-def create_usm():
-    parser = argparse.ArgumentParser("WannaCRI Create USM", allow_abbrev=False)
-    parser.add_argument(
-        "operation",
-        metavar="operation",
-        type=str,
-        choices=OP_LIST,
-        help="Specify operation.",
-    )
-    parser.add_argument(
-        "input",
-        metavar="input file path",
-        type=existing_file,
-        help="Path to video file.",
-    )
-    parser.add_argument(
-        "-e",
-        "--encoding",
-        type=str,
-        default="shift-jis",
-        help="Character encoding used in creating USM. Defaults to shift-jis.",
-    )
-    parser.add_argument(
-        "-o",
-        "--output",
-        type=dir_path,
-        default=None,
-        help="Output path. Defaults to the same place as input.",
-    )
-    parser.add_argument(
-        "--ffprobe",
-        type=str,
-        default=".",
-        help="Path to ffprobe executable or directory. Defaults to CWD.",
-    )
-    parser.add_argument(
-        "-k", "--key", type=key, default=None, help="Encryption key for encrypted USMs."
-    )
-    args = parser.parse_args()
-
-    ffprobe_path = find_ffprobe(args.ffprobe)
-
-    # TODO: Add support for more video codecs and audio codecs
-    codec = Sofdec2Codec.from_file(args.input)
-    if codec is Sofdec2Codec.VP9 or codec is Sofdec2Codec.H264:
-        if codec is Sofdec2Codec.VP9:
-            video = Vp9(args.input, ffprobe_path=ffprobe_path)
-        elif codec is Sofdec2Codec.H264:
-            video = H264(args.input, ffprobe_path=ffprobe_path)
-        filename = os.path.splitext(args.input)[0]
-
-        usm = Usm(videos=[video], key=args.key)
-        with open(filename + ".usm", "wb") as f:
-            mode = OpMode.NONE if args.key is None else OpMode.ENCRYPT
-
-            for packet in usm.stream(mode, encoding=args.encoding):
-                f.write(packet)
-    else:
-        raise NotImplementedError("Non-Vp9/H.264 files are not yet implemented.")
-
-    print("Done creating USM file.")
 
 
 def encrypt_usm():
