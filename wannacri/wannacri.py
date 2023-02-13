@@ -14,7 +14,7 @@ from pythonjsonlogger import jsonlogger
 
 import wannacri
 from .codec import Sofdec2Codec
-from .usm import is_usm, Usm, Vp9, H264, OpMode, generate_keys
+from .usm import is_usm, Usm, Vp9, H264, HCA, OpMode, generate_keys
 
 
 def create_usm():
@@ -31,6 +31,14 @@ def create_usm():
         metavar="input file path",
         type=existing_file,
         help="Path to video file.",
+    )
+    parser.add_argument(
+        "-a",
+        "--input_audio",
+        metavar="input audio file path",
+        type=existing_file,
+        default=None,
+        help="Path to audio file.",
     )
     parser.add_argument(
         "-e",
@@ -68,9 +76,13 @@ def create_usm():
     else:
         raise NotImplementedError("Non-Vp9/H.264 files are not yet implemented.")
 
+    audios = None
+    if args.input_audio:
+        audios = [HCA(args.input_audio)]
+
     filename = os.path.splitext(args.input)[0]
 
-    usm = Usm(videos=[video], key=args.key)
+    usm = Usm(videos=[video], audios=audios, key=args.key)
     with open(filename + ".usm", "wb") as f:
         mode = OpMode.NONE if args.key is None else OpMode.ENCRYPT
 

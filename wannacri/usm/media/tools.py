@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import List
 
 from ..page import UsmPage
@@ -57,4 +58,49 @@ def create_video_header_page(
     header.update("max_picture_size", ElementType.INT, 0)
     header.update("color_space", ElementType.INT, 0)
     header.update("picture_type", ElementType.INT, 0)
+    return header
+
+
+def create_audio_crid_page(
+    filename: str,
+    filesize: int,
+    format_version: int,
+    channel_number: int,
+    minbuf: int,
+    avbps: int
+) -> UsmPage:
+    crid = UsmPage("CRIUSF_DIR_STREAM")
+    crid.update("fmtver", ElementType.INT, format_version)
+    crid.update("filename", ElementType.STRING, filename)
+    crid.update("filesize", ElementType.INT, filesize)
+    crid.update("datasize", ElementType.INT, 0)
+    crid.update("stmid", ElementType.INT, 1079199297)  # @SFA
+    crid.update("chno", ElementType.SHORT, channel_number)
+    crid.update("minchk", ElementType.SHORT, 1)
+    crid.update("minbuf", ElementType.INT, minbuf)
+    crid.update("avbps", ElementType.INT, avbps)
+    return crid
+
+
+class AUDIO_CODEC(Enum):
+    HCA = 4
+
+
+def create_audio_header_page(
+    audio_codec: AUDIO_CODEC,
+    sampling_rate: int,
+    num_channels: int,
+    metadata_count: int,
+    metadata_size: int,
+    ixsize: int,
+    ambisonics: int = 0  # I have no idea, disabled?
+) -> UsmPage:
+    header = UsmPage("AUDIO_HDRINFO")
+    header.update("audio_codec", ElementType.CHAR, audio_codec.value)
+    header.update("sampling_rate", ElementType.INT, sampling_rate)
+    header.update("num_channels", ElementType.INT, num_channels)
+    header.update("metadata_count", ElementType.INT, metadata_count)
+    header.update("metadata_size", ElementType.INT, metadata_size)
+    header.update("ixsize", ElementType.INT, ixsize)
+    header.update("ambisonics", ElementType.CHAR, ambisonics)    # IDK what this is
     return header
