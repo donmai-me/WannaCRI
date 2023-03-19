@@ -44,7 +44,7 @@ class Usm:
         alphas: Optional[List[UsmVideo]] = None,
         key: Optional[int] = None,
         usm_crid: Optional[UsmPage] = None,
-        version: int = 16777984,
+        version: Optional[int] = None,
     ) -> None:
         if len(videos) == 0:
             raise ValueError("No video given.")
@@ -96,12 +96,14 @@ class Usm:
     @property
     def filename(self) -> str:
         if self._usm_crid is not None:
-            return self._usm_crid.get("filename").val.split("/")[-1]
+            crid_filename = self._usm_crid.get("filename")
+            if crid_filename is not None:
+                assert isinstance(crid_filename, str)
+                return crid_filename.split("/")[-1]
 
-        return (
-            self.videos[0].crid_page.get("filename").val.split("/")[-1].split(".")[0]
-            + ".usm"
-        )
+        video_filename = self.videos[0].crid_page.get("filename")
+        assert video_filename is not None and isinstance(video_filename, str)
+        return video_filename.split("/")[-1].split(".")[0] + ".usm"
 
     def usm_crid_page(self, size_after_crid_part: Optional[int] = None) -> UsmPage:
         if self._usm_crid is not None:
@@ -111,7 +113,9 @@ class Usm:
             raise ValueError("Size after crid part not given.")
 
         crid = UsmPage("CRIUSF_DIR_STREAM")
-        crid.update("fmtver", ElementType.INT, self.version)
+        if self.version is not None:
+            crid.update("fmtver", ElementType.INT, self.version)
+
         crid.update("filename", ElementType.STRING, self.filename)
         crid.update("filesize", ElementType.INT, 0x800 + size_after_crid_part)
         crid.update("datasize", ElementType.INT, 0)
@@ -177,14 +181,18 @@ class Usm:
             crid = [
                 page
                 for page in crids
-                if page.get("chno").val == channel_number
-                and page.get("stmid").val == 0x40534656  # @SFV
+                if (chno := page.get("chno")) is not None
+                and chno.val == channel_number
+                and (stmid := page.get("stmid")) is not None
+                and stmid.val == 0x40534656  # @SFV
             ]
 
             if len(crid) == 0:
-                raise ValueError(f"No crid page found for videos ch {channel_number}.")
+                raise ValueError(f"No crid page found for video ch {channel_number}.")
             if channel_number == 0:
-                version = crid[0].get("fmtver").val
+                video_fmtver = crid[0].get("fmtver")
+                if video_fmtver is not None and isinstance(video_fmtver.val, int):
+                    version = video_fmtver.val
 
             videos.append(
                 GenericVideo(
@@ -205,12 +213,14 @@ class Usm:
             crid = [
                 page
                 for page in crids
-                if page.get("chno").val == channel_number
-                and page.get("stmid").val == 0x40534641  # @SFA
+                if (chno := page.get("chno")) is not None
+                and chno.val == channel_number
+                and (stmid := page.get("stmid")) is not None
+                and stmid.val == 0x40534641  # @SFA
             ]
 
             if len(crid) == 0:
-                raise ValueError(f"No crid page found for audios ch {channel_number}.")
+                raise ValueError(f"No crid page found for audio ch {channel_number}.")
 
             audios.append(
                 GenericAudio(
@@ -223,10 +233,17 @@ class Usm:
             )
 
         for channel_number, alpha_channel in alpha_channels.items():
-            crid = [page for page in crids if page.get("chno").val == channel_number and page.get("stmid").val == 0x40414C50]
+            crid = [
+                page
+                for page in crids
+                if (chno := page.get("chno")) is not None
+                and chno.val == channel_number
+                and (stmid := page.get("stmid")) is not None
+                and stmid.val == 0x40414C50
+            ]
 
             if len(crid) == 0:
-                raise ValueError(f"No crid page found for video ch {channel_number}")
+                raise ValueError(f"No crid page found for alpha ch {channel_number}")
 
             alphas.append(
                 GenericVideo(
@@ -234,7 +251,7 @@ class Usm:
                         usmfile,
                         usmmutex,
                         alpha_channel.stream,
-                        keyframes_from_seek_pages(alpha_channel.metadata)
+                        keyframes_from_seek_pages(alpha_channel.metadata),
                     ),
                     crid[0],
                     alpha_channel.header,
@@ -244,14 +261,23 @@ class Usm:
                 )
             )
 
-        usm_crid = [page for page in crids if page.get("chno").val == -1]
+        usm_crid = [
+            page
+            for page in crids
+            if (chno := page.get("chno")) is not None and chno.val == -1
+        ]
         if len(usm_crid) == 0:
             raise ValueError("No usm crid page found.")
         if version is None:
             raise ValueError("Format version not found.")
 
         return cls(
-            version=version, videos=videos, audios=audios, alphas=alphas, key=key, usm_crid=usm_crid[0]
+            version=version,
+            videos=videos,
+            audios=audios,
+            alphas=alphas,
+            key=key,
+            usm_crid=usm_crid[0],
         )
 
     def demux(
@@ -420,7 +446,9 @@ def _chunk_helper(default_dict_ch: Dict[int, UsmChannel], chunk: UsmChunk, offse
         logging.debug(
             f"{chunk.chunk_type} section end",
             extra={
-                "payload": bytes_to_hex(chunk.payload) if isinstance(chunk.payload, bytes) else chunk.payload,
+                "payload": bytes_to_hex(chunk.payload)
+                if isinstance(chunk.payload, bytes)
+                else chunk.payload,
                 "offset": offset,
             },
         )
@@ -433,10 +461,12 @@ def _chunk_helper(default_dict_ch: Dict[int, UsmChannel], chunk: UsmChunk, offse
 
 
 def _process_chunks(
-        usmfile: IO,
-        filesize: int,
-        encoding: str,
-) -> Tuple[List[UsmPage], Dict[int, UsmChannel], Dict[int, UsmChannel], Dict[int, UsmChannel]]:
+    usmfile: IO,
+    filesize: int,
+    encoding: str,
+) -> Tuple[
+    List[UsmPage], Dict[int, UsmChannel], Dict[int, UsmChannel], Dict[int, UsmChannel]
+]:
     """Helper function that reads all the chunks in a USM file and returns a tuple of
     1. A list of USM pages about the contents of the USM file.
     2. A dictionary of USM video channels.
@@ -449,7 +479,9 @@ def _process_chunks(
     audio_ch: Dict[int, UsmChannel] = defaultdict(
         lambda: UsmChannel(stream=[], header=UsmPage(""))
     )
-    alpha_ch: Dict[int, UsmChannel] = defaultdict(lambda: UsmChannel(stream=[], header=UsmPage("")))
+    alpha_ch: Dict[int, UsmChannel] = defaultdict(
+        lambda: UsmChannel(stream=[], header=UsmPage(""))
+    )
 
     usmfile.seek(0, 0)
     while filesize > usmfile.tell():

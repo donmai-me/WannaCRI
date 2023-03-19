@@ -1,0 +1,7 @@
+.eggs/
+build/
+dist/
+*.egg-info
+*.usm
+*.dat
+*.ivf
