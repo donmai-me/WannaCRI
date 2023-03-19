@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List
+from typing import List, Optional
 
 from ..page import UsmPage
 from ..types import ElementType
@@ -9,12 +9,14 @@ def create_video_crid_page(
     filename: str,
     filesize: int,
     max_size: int,
-    format_version: int,
     channel_number: int,
     bitrate: int,
+    format_version: Optional[int] = None,
 ) -> UsmPage:
     crid = UsmPage("CRIUSF_DIR_STREAM")
-    crid.update("fmtver", ElementType.I32, format_version)
+    if format_version is not None:
+        crid.update("fmtver", ElementType.I32, format_version)
+
     crid.update("filename", ElementType.STRING, filename)
     crid.update("filesize", ElementType.I32, filesize)
     crid.update("datasize", ElementType.I32, 0)

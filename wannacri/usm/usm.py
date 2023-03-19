@@ -268,8 +268,6 @@ class Usm:
         ]
         if len(usm_crid) == 0:
             raise ValueError("No usm crid page found.")
-        if version is None:
-            raise ValueError("Format version not found.")
 
         return cls(
             version=version,
