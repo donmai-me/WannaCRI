@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Added
+- Support for more ChunkTypes.
+
+### Changed
+- Rewritten and moved some logic related to usm chunks.
+- Usm versions is now optional. Supporting usms that don't include that information.
+
 ## [0.3.0] - 2022-07-11
 ### Added
 - Support for H.264 USM creation. Courtesy of [keikei14](https://github.com/keikei14)
@@ -49,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Renamed ArrayType to ElementType.
-- UsmChunk from_bytes method now determines payload type by the first four bytes of a payload. 
+- UsmChunk from_bytes method now determines payload type by the first four bytes of a payload.
 - Changed logging format to JSON.
 - is_valid_chunk function no longer recasts byte input to bytearray.
 - Command-line now prints installed version.

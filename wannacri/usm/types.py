@@ -1,14 +1,23 @@
 from __future__ import annotations
 from enum import Enum, auto
+from typing import List
 
 from .tools import bytes_to_hex
 
 
 class ChunkType(Enum):
-    INFO = bytearray("CRID", "UTF-8")
-    VIDEO = bytearray("@SFV", "UTF-8")
-    AUDIO = bytearray("@SFA", "UTF-8")
-    ALPHA = bytearray("@ALP", "UTF-8")
+    INFO = b"CRID"
+    VIDEO = b"@SFV"
+    AUDIO = b"@SFA"
+    ALPHA = b"@ALP"
+    SUBTITLE = b"@SBT"
+    CUE = b"@CUE"
+
+    # Rare chunk types from Youjose's PyCriCodecs
+    SFSH = b"SFSH"
+    AHX = b"@AHX"
+    USR = b"@USR"
+    PST = b"@PST"
 
     @staticmethod
     def from_bytes(data: bytes) -> ChunkType:
@@ -19,6 +28,25 @@ class ChunkType(Enum):
                 return enum_type
 
         raise ValueError(f"Unknown chunk signature: {bytes_to_hex(data[:4])}")
+
+    @staticmethod
+    def all_values() -> List[bytes]:
+        return [enum.value for enum in ChunkType]
+
+    @staticmethod
+    def is_valid_chunk(signature: bytes) -> bool:
+        """Check if the first four bytes of a chunk are valid Usm chunks.
+        Returns true if valid, and false if invalid or the given input is less
+        than four bytes.
+        """
+        if len(signature) < 4:
+            return False
+
+        valid_signatures = ChunkType.all_values()
+        return signature[:4] in valid_signatures
+
+    def to_int(self) -> int:
+        return int.from_bytes(self.value, "big")
 
     def __str__(self):
         return str(self.value, "UTF-8")
@@ -65,7 +93,7 @@ class ElementType(Enum):
     ULONGLONG = 0x17  # 8 bytes
     FLOAT = 0x18  # 4 bytes
     # TODO: Confirm DOUBLE's existence
-    # DOUBLE = 0x19  # 8 bytes
+    DOUBLE = 0x19  # 8 bytes
     STRING = 0x1A  # Null byte terminated
     BYTES = 0x1B  # Bytes
 

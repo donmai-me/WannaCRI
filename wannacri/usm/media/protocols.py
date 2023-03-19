@@ -144,7 +144,7 @@ class UsmVideo(UsmMedia, Protocol):
             yield payload, is_keyframe
 
     def chunks(
-        self, mode: OpMode.NONE, key: Optional[bytes] = None
+        self, mode: OpMode = OpMode.NONE, key: Optional[bytes] = None
     ) -> Generator[Tuple[List[UsmChunk], bool], None, None]:
         """A generator of UsmChunks to be consumed for a Usm file
         and a bool which is true when the current packet is a keyframe.
@@ -178,6 +178,7 @@ class UsmVideo(UsmMedia, Protocol):
             framerate = 30
 
         for i, (payload, is_keyframe) in enumerate(self.stream(mode, key)):
+            # TODO: Find real frame_time formula
             frame_time = int(i * 99.9)
 
             padding_size = (
@@ -296,6 +297,7 @@ class UsmAudio(UsmMedia, Protocol):
             raise ValueError("No key given for encrypt or decrypt mode")
 
         for i, payload in enumerate(self.stream(mode, key)):
+            # TODO: Find real frame_time formula
             frame_time = int(i * 99.9)
 
             padding_size = (

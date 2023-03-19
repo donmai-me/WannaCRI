@@ -1,3 +1,4 @@
+from collections.abc import Generator
 import math
 from typing import Tuple, IO, List, Callable, Union
 import threading
@@ -25,23 +26,6 @@ def slugify(value, allow_unicode=True):
 
     value = re.sub(r"[^\w\s.,+-]", "", value.lower())
     return re.sub(r"[-\s]+", "-", value).strip("-_")
-
-
-def is_valid_chunk(signature: bytes) -> bool:
-    """Check if the first four bytes of a chunk are valid Usm chunks.
-    Returns true if valid, and false if invalid or the given input is less
-    than four bytes.
-    """
-    if len(signature) < 4:
-        return False
-
-    valid_signatures = [
-        bytes("CRID", "UTF-8"),  # CRI USF DIR STREAM
-        bytes("@SFV", "UTF-8"),  # Video
-        bytes("@SFA", "UTF-8"),  # Audio
-        bytes("@ALP", "UTF-8")
-    ]
-    return signature[:4] in valid_signatures
 
 
 def is_payload_list_pages(payload: bytes) -> bool:
@@ -236,7 +220,7 @@ def video_sink(
     usmmutex: threading.Lock,
     offsets_and_sizes: List[Tuple[int, int]],
     keyframes: List[int],
-):
+) -> Generator[Tuple[bytes, bool], None, None]:
     """A generator for videos chunk payloads. Takes a handle of a usm file, a mutex,
     a list of tuples of a chunk payload's offset and size, and a list of keyframes'
     frame number.
@@ -254,7 +238,9 @@ def video_sink(
         yield frame, is_keyframe
 
 
-def audio_sink(usmfile: IO, usmmutex: threading.Lock, offsets_and_sizes: list):
+def audio_sink(
+    usmfile: IO, usmmutex: threading.Lock, offsets_and_sizes: list
+) -> Generator[bytes, None, None]:
     """A generator for audios chunk payloads. Takes a handle of a usm file, a mutex,
     and a list of tuples of a chunk payload's offset and size.
 
