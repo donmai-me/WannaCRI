@@ -175,58 +175,58 @@ def get_pages(info: bytearray, encoding: str = "UTF-8") -> List[UsmPage]:
             else:
                 current_array = unique_array
 
-            if element_type == ElementType.CHAR:
-                page.update(element_name, ElementType.CHAR, current_array[0])
+            if element_type == ElementType.I8:
+                page.update(element_name, ElementType.I8, current_array[0])
                 element_size = 1
-            elif element_type == ElementType.UCHAR:
-                page.update(element_name, ElementType.UCHAR, current_array[0])
+            elif element_type == ElementType.U8:
+                page.update(element_name, ElementType.U8, current_array[0])
                 element_size = 1
-            elif element_type == ElementType.SHORT:
+            elif element_type == ElementType.I16:
                 page.update(
                     element_name,
-                    ElementType.SHORT,
+                    ElementType.I16,
                     int.from_bytes(current_array[0:2], "big", signed=True),
                 )
                 element_size = 2
-            elif element_type == ElementType.USHORT:
+            elif element_type == ElementType.U16:
                 page.update(
                     element_name,
-                    ElementType.USHORT,
+                    ElementType.U16,
                     int.from_bytes(current_array[0:2], "big"),
                 )
                 element_size = 2
-            elif element_type == ElementType.INT:
+            elif element_type == ElementType.I32:
                 page.update(
                     element_name,
-                    ElementType.INT,
+                    ElementType.I32,
                     int.from_bytes(current_array[0:4], "big", signed=True),
                 )
                 element_size = 4
-            elif element_type == ElementType.UINT:
+            elif element_type == ElementType.U32:
                 page.update(
                     element_name,
-                    ElementType.UINT,
+                    ElementType.U32,
                     int.from_bytes(current_array[0:4], "big"),
                 )
                 element_size = 4
-            elif element_type == ElementType.LONGLONG:
+            elif element_type == ElementType.I64:
                 page.update(
                     element_name,
-                    ElementType.LONGLONG,
+                    ElementType.I64,
                     int.from_bytes(current_array[0:8], "big", signed=True),
                 )
                 element_size = 8
-            elif element_type == ElementType.ULONGLONG:
+            elif element_type == ElementType.U64:
                 page.update(
                     element_name,
-                    ElementType.ULONGLONG,
+                    ElementType.U64,
                     int.from_bytes(current_array[0:8], "big"),
                 )
                 element_size = 8
-            elif element_type == ElementType.FLOAT:
+            elif element_type == ElementType.F32:
                 page.update(
                     element_name,
-                    ElementType.FLOAT,
+                    ElementType.F32,
                     # < means little-endian
                     struct.unpack("<f", current_array[0:4]),
                 )
@@ -345,23 +345,23 @@ def pack_pages(
 
                 current_array = unique_array
 
-            if element.type == ElementType.CHAR:
+            if element.type == ElementType.I8:
                 current_array += element.val.to_bytes(1, "big", signed=True)
-            elif element.type == ElementType.UCHAR:
+            elif element.type == ElementType.U8:
                 current_array += element.val.to_bytes(1, "big")
-            elif element.type == ElementType.SHORT:
+            elif element.type == ElementType.I16:
                 current_array += element.val.to_bytes(2, "big", signed=True)
-            elif element.type == ElementType.USHORT:
+            elif element.type == ElementType.U16:
                 current_array += element.val.to_bytes(2, "big")
-            elif element.type == ElementType.INT:
+            elif element.type == ElementType.I32:
                 current_array += element.val.to_bytes(4, "big", signed=True)
-            elif element.type == ElementType.UINT:
+            elif element.type == ElementType.U32:
                 current_array += element.val.to_bytes(4, "big")
-            elif element.type == ElementType.LONGLONG:
+            elif element.type == ElementType.I64:
                 current_array += element.val.to_bytes(8, "big", signed=True)
-            elif element.type == ElementType.ULONGLONG:
+            elif element.type == ElementType.U64:
                 current_array += element.val.to_bytes(8, "big")
-            elif element.type == ElementType.FLOAT:
+            elif element.type == ElementType.F32:
                 # < means little-endian
                 current_array += struct.pack("<f", element.val)
             elif element.type == ElementType.STRING:

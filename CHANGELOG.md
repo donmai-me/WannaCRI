@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Rewritten and moved some logic related to usm chunks.
 - Usm versions is now optional. Supporting usms that don't include that information.
+- Usm ElementType members renamed from C-style naming to I/U + bit size naming convention
 
 ## [0.3.0] - 2022-07-11
 ### Added

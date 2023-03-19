@@ -83,17 +83,17 @@ class ElementOccurrence(Enum):
 
 
 class ElementType(Enum):
-    CHAR = 0x10  # 1 byte
-    UCHAR = 0x11  # 1 byte
-    SHORT = 0x12  # 2 bytes
-    USHORT = 0x13  # 2 bytes
-    INT = 0x14  # 4 bytes
-    UINT = 0x15  # 4 bytes
-    LONGLONG = 0x16  # 8 bytes
-    ULONGLONG = 0x17  # 8 bytes
-    FLOAT = 0x18  # 4 bytes
-    # TODO: Confirm DOUBLE's existence
-    DOUBLE = 0x19  # 8 bytes
+    I8 = 0x10  # 1 byte
+    U8 = 0x11  # 1 byte
+    I16 = 0x12  # 2 bytes
+    U16 = 0x13  # 2 bytes
+    I32 = 0x14  # 4 bytes
+    U32 = 0x15  # 4 bytes
+    I64 = 0x16  # 8 bytes
+    U64 = 0x17  # 8 bytes
+    F32 = 0x18  # 4 bytes
+    # TODO: Confirm f64's existence
+    F64 = 0x19  # 8 bytes
     STRING = 0x1A  # Null byte terminated
     BYTES = 0x1B  # Bytes
 

@@ -114,19 +114,19 @@ class Usm:
 
         crid = UsmPage("CRIUSF_DIR_STREAM")
         if self.version is not None:
-            crid.update("fmtver", ElementType.INT, self.version)
+            crid.update("fmtver", ElementType.I32, self.version)
 
         crid.update("filename", ElementType.STRING, self.filename)
-        crid.update("filesize", ElementType.INT, 0x800 + size_after_crid_part)
-        crid.update("datasize", ElementType.INT, 0)
-        crid.update("stmid", ElementType.INT, 0)
-        crid.update("chno", ElementType.SHORT, -1)
-        crid.update("minchk", ElementType.SHORT, 1)
+        crid.update("filesize", ElementType.I32, 0x800 + size_after_crid_part)
+        crid.update("datasize", ElementType.I32, 0)
+        crid.update("stmid", ElementType.I32, 0)
+        crid.update("chno", ElementType.I16, -1)
+        crid.update("minchk", ElementType.I16, 1)
 
         # TODO: Find formula for minbuf
         minbuf = round(self._max_packet_size * 1.98746)
         minbuf += 0x10 - (minbuf % 0x10) if minbuf % 0x10 != 0 else 0
-        crid.update("minbuf", ElementType.INT, minbuf)
+        crid.update("minbuf", ElementType.I32, minbuf)
 
         bitrate = 0
         for video in self.videos:
@@ -135,7 +135,7 @@ class Usm:
         for audio in self.audios:
             bitrate += int(audio.crid_page["avbps"].val)
 
-        crid.update("avbps", ElementType.INT, bitrate)
+        crid.update("avbps", ElementType.I32, bitrate)
 
         return crid
 
@@ -610,10 +610,10 @@ def _generate_header_metadata_chunks(
             for index, offset in index_and_offsets:
                 page = UsmPage("VIDEO_SEEKINFO")
                 # ofs_byte is modified later
-                page.update("ofs_byte", ElementType.LONGLONG, offset)
-                page.update("ofs_frmid", ElementType.UINT, index)
-                page.update("num_skip", ElementType.USHORT, 0)
-                page.update("resv", ElementType.USHORT, 0)
+                page.update("ofs_byte", ElementType.I64, offset)
+                page.update("ofs_frmid", ElementType.U32, index)
+                page.update("num_skip", ElementType.U16, 0)
+                page.update("resv", ElementType.U16, 0)
                 metadata_pages.append(page)
         else:
             metadata_pages = video.metadata_pages
@@ -684,7 +684,7 @@ def _generate_header_metadata_chunks(
             for metadata in payload:
                 offset = metadata["ofs_byte"].val
                 offset += 0x800 + current_position + metadata_section_size
-                metadata.update("ofs_byte", ElementType.LONGLONG, offset)
+                metadata.update("ofs_byte", ElementType.I64, offset)
 
         yield chunk, current_position + metadata_section_size
 
